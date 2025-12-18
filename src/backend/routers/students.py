@@ -8,8 +8,9 @@ from typing import Dict, Any, Optional
 import os
 from pathlib import Path
 import uuid
+import hashlib
 
-from ..database import db
+from ..database import db, teachers_collection
 
 router = APIRouter(
     prefix="/students",
@@ -37,8 +38,6 @@ async def upload_student_picture(
     teacher_username: Optional[str] = Query(None)
 ) -> Dict[str, Any]:
     """Upload a student picture - requires teacher authentication"""
-    from ..database import teachers_collection
-    
     # Check teacher authentication
     if not teacher_username:
         raise HTTPException(status_code=401, detail="Authentication required for this action")
@@ -55,8 +54,10 @@ async def upload_student_picture(
         )
     
     # Generate a unique filename to avoid conflicts
+    # Use hash of email to create a safe filename component
     file_extension = Path(picture.filename).suffix.lower()
-    unique_filename = f"{email.replace('@', '_at_').replace('.', '_')}_{uuid.uuid4().hex[:8]}{file_extension}"
+    email_hash = hashlib.md5(email.encode()).hexdigest()[:12]
+    unique_filename = f"student_{email_hash}_{uuid.uuid4().hex[:8]}{file_extension}"
     file_path = UPLOAD_DIR / unique_filename
     
     # Save the file
@@ -79,8 +80,9 @@ async def upload_student_picture(
         if old_file_path.exists():
             try:
                 old_file_path.unlink()
-            except Exception:
-                pass  # Ignore errors when deleting old file
+            except (FileNotFoundError, PermissionError) as e:
+                # Log but don't fail if old file can't be deleted
+                print(f"Warning: Could not delete old file {old_filename}: {e}")
     
     # Update student record
     students_collection.update_one(
