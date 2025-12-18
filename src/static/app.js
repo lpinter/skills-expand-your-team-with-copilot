@@ -25,6 +25,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const closeLoginModal = document.querySelector(".close-login-modal");
   const loginMessage = document.getElementById("login-message");
 
+  // Picture upload elements
+  const pictureModal = document.getElementById("picture-modal");
+  const pictureForm = document.getElementById("picture-form");
+  const closePictureModal = document.querySelector(".close-picture-modal");
+  const pictureMessage = document.getElementById("picture-message");
+  const modalStudentEmail = document.getElementById("modal-student-email");
+  const studentEmailInput = document.getElementById("student-email-input");
+  const studentPictureInput = document.getElementById("student-picture");
+
   // Activity categories with corresponding colors
   const activityTypes = {
     sports: { label: "Sports", color: "#e8f5e9", textColor: "#2e7d32" },
@@ -43,6 +52,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Authentication state
   let currentUser = null;
+
+  // Student pictures cache
+  let studentPictures = {};
 
   // Time range mappings for the dropdown
   const timeRanges = {
@@ -254,6 +266,109 @@ document.addEventListener("DOMContentLoaded", () => {
     await login(username, password);
   });
 
+  // Fetch student pictures from the API
+  async function fetchStudentPictures() {
+    try {
+      const response = await fetch("/students");
+      if (response.ok) {
+        const students = await response.json();
+        studentPictures = students;
+      }
+    } catch (error) {
+      console.error("Error fetching student pictures:", error);
+    }
+  }
+
+  // Open picture upload modal
+  function openPictureModal(email) {
+    modalStudentEmail.textContent = email;
+    studentEmailInput.value = email;
+    pictureModal.classList.remove("hidden");
+    pictureMessage.classList.add("hidden");
+    setTimeout(() => {
+      pictureModal.classList.add("show");
+    }, 10);
+  }
+
+  // Close picture upload modal
+  function closePictureModalHandler() {
+    pictureModal.classList.remove("show");
+    setTimeout(() => {
+      pictureModal.classList.add("hidden");
+      pictureForm.reset();
+    }, 300);
+  }
+
+  // Show message in picture modal
+  function showPictureMessage(text, type) {
+    pictureMessage.textContent = text;
+    pictureMessage.className = `message ${type}`;
+    pictureMessage.classList.remove("hidden");
+  }
+
+  // Event listeners for picture upload
+  closePictureModal.addEventListener("click", closePictureModalHandler);
+
+  // Close picture modal when clicking outside
+  window.addEventListener("click", (event) => {
+    if (event.target === pictureModal) {
+      closePictureModalHandler();
+    }
+  });
+
+  // Handle picture upload form submission
+  pictureForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    // Check if user is authenticated
+    if (!currentUser) {
+      showPictureMessage(
+        "You must be logged in as a teacher to upload pictures.",
+        "error"
+      );
+      return;
+    }
+
+    const email = studentEmailInput.value;
+    const pictureFile = studentPictureInput.files[0];
+
+    if (!pictureFile) {
+      showPictureMessage("Please select a picture to upload.", "error");
+      return;
+    }
+
+    // Create FormData to send file
+    const formData = new FormData();
+    formData.append("picture", pictureFile);
+
+    try {
+      const response = await fetch(
+        `/students/upload-picture?email=${encodeURIComponent(
+          email
+        )}&teacher_username=${encodeURIComponent(currentUser.username)}`,
+        {
+          method: "POST",
+          body: formData,
+        }
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        showMessage(result.message, "success");
+        closePictureModalHandler();
+        // Refresh student pictures and activities
+        await fetchStudentPictures();
+        fetchActivities();
+      } else {
+        showPictureMessage(result.detail || "An error occurred", "error");
+      }
+    } catch (error) {
+      showPictureMessage("Failed to upload picture. Please try again.", "error");
+      console.error("Error uploading picture:", error);
+    }
+  });
+
   // Show loading skeletons
   function showLoadingSkeletons() {
     activitiesList.innerHTML = "";
@@ -370,6 +485,9 @@ document.addEventListener("DOMContentLoaded", () => {
     showLoadingSkeletons();
 
     try {
+      // Fetch student pictures first to ensure they're available
+      await fetchStudentPictures();
+      
       // Build query string with filters if they exist
       let queryParams = [];
 
@@ -534,21 +652,37 @@ document.addEventListener("DOMContentLoaded", () => {
         <ul>
           ${details.participants
             .map(
-              (email) => `
-            <li>
-              ${email}
+              (email) => {
+                const studentPicture = studentPictures[email]?.picture_url;
+                return `
+            <li class="participant-item">
+              <div class="participant-info">
+                ${
+                  studentPicture
+                    ? `<img src="${studentPicture}" alt="${email}" class="student-picture" />`
+                    : `<div class="student-picture-placeholder">👤</div>`
+                }
+                <span class="participant-email">${email}</span>
+              </div>
               ${
                 currentUser
                   ? `
-                <span class="delete-participant tooltip" data-activity="${name}" data-email="${email}">
-                  ✖
-                  <span class="tooltip-text">Unregister this student</span>
-                </span>
+                <div class="participant-actions">
+                  <span class="upload-picture tooltip" data-email="${email}" title="Upload picture">
+                    📷
+                    <span class="tooltip-text">Upload picture</span>
+                  </span>
+                  <span class="delete-participant tooltip" data-activity="${name}" data-email="${email}">
+                    ✖
+                    <span class="tooltip-text">Unregister this student</span>
+                  </span>
+                </div>
               `
                   : ""
               }
             </li>
-          `
+          `;
+              }
             )
             .join("")}
         </ul>
@@ -576,6 +710,15 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteButtons = activityCard.querySelectorAll(".delete-participant");
     deleteButtons.forEach((button) => {
       button.addEventListener("click", handleUnregister);
+    });
+
+    // Add click handlers for upload picture buttons
+    const uploadButtons = activityCard.querySelectorAll(".upload-picture");
+    uploadButtons.forEach((button) => {
+      button.addEventListener("click", (event) => {
+        const email = event.target.dataset.email;
+        openPictureModal(email);
+      });
     });
 
     // Add click handler for register button (only when authenticated)
@@ -865,5 +1008,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize app
   checkAuthentication();
   initializeFilters();
+  fetchStudentPictures();
   fetchActivities();
 });

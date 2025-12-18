@@ -168,6 +168,29 @@
       </div>
     </div>
 
+    <!-- Picture Upload Modal -->
+    <div id="picture-modal" class="modal hidden">
+      <div class="modal-content">
+        <span class="close-picture-modal">&times;</span>
+        <h3>Upload Picture for <span id="modal-student-email"></span></h3>
+        <form id="picture-form">
+          <div class="form-group">
+            <label for="student-picture">Select Picture:</label>
+            <input
+              type="file"
+              id="student-picture"
+              accept="image/jpeg,image/jpg,image/png,image/gif"
+              required
+            />
+            <small>Accepted formats: JPG, JPEG, PNG, GIF</small>
+          </div>
+          <input type="hidden" id="student-email-input" value="" />
+          <button type="submit">Upload Picture</button>
+        </form>
+        <div id="picture-message" class="hidden message"></div>
+      </div>
+    </div>
+
     <script src="app.js"></script>
   </body>
 </html>
