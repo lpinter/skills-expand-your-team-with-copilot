@@ -520,6 +520,27 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     `;
 
+    // Create social sharing buttons
+    const socialShareButtons = `
+      <div class="social-share-container">
+        <span class="share-label">Share:</span>
+        <div class="social-share-buttons">
+          <button class="share-button twitter" data-activity="${name}" data-platform="twitter" title="Share on Twitter">
+            𝕏
+          </button>
+          <button class="share-button facebook" data-activity="${name}" data-platform="facebook" title="Share on Facebook">
+            f
+          </button>
+          <button class="share-button linkedin" data-activity="${name}" data-platform="linkedin" title="Share on LinkedIn">
+            in
+          </button>
+          <button class="share-button email" data-activity="${name}" data-platform="email" title="Share via Email">
+            ✉
+          </button>
+        </div>
+      </div>
+    `;
+
     activityCard.innerHTML = `
       ${tagHtml}
       <h4>${name}</h4>
@@ -529,6 +550,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="tooltip-text">Regular meetings at this time throughout the semester</span>
       </p>
       ${capacityIndicator}
+      ${socialShareButtons}
       <div class="participants-list">
         <h5>Current Participants:</h5>
         <ul>
@@ -576,6 +598,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const deleteButtons = activityCard.querySelectorAll(".delete-participant");
     deleteButtons.forEach((button) => {
       button.addEventListener("click", handleUnregister);
+    });
+
+    // Add click handlers for social share buttons
+    const shareButtons = activityCard.querySelectorAll(".share-button");
+    shareButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const activityName = button.dataset.activity;
+        const platform = button.dataset.platform;
+        handleShare(activityName, details, formattedSchedule, platform);
+      });
     });
 
     // Add click handler for register button (only when authenticated)
@@ -810,6 +842,57 @@ document.addEventListener("DOMContentLoaded", () => {
     setTimeout(() => {
       messageDiv.classList.add("hidden");
     }, 5000);
+  }
+
+  // Handle social sharing
+  function handleShare(activityName, details, formattedSchedule, platform) {
+    // Build the share URL for the current page
+    const shareUrl = window.location.href;
+    
+    // Create share message
+    const shareTitle = `Join ${activityName} at Mergington High School!`;
+    const shareText = `Check out this activity: ${activityName}\n${details.description}\nSchedule: ${formattedSchedule}\n\nLearn more:`;
+    
+    // Platform-specific sharing
+    let url = '';
+    
+    switch (platform) {
+      case 'twitter':
+        // Twitter/X share (now limited to 280 characters including URL)
+        const twitterText = `Join ${activityName} at Mergington High! ${details.description.substring(0, 100)}... Schedule: ${formattedSchedule}`;
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}&url=${encodeURIComponent(shareUrl)}`;
+        break;
+        
+      case 'facebook':
+        // Facebook share
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareText)}`;
+        break;
+        
+      case 'linkedin':
+        // LinkedIn share
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`;
+        break;
+        
+      case 'email':
+        // Email share
+        const emailSubject = shareTitle;
+        const emailBody = `${shareText}\n${shareUrl}`;
+        url = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+        break;
+        
+      default:
+        showMessage('Sharing platform not supported', 'error');
+        return;
+    }
+    
+    // Open sharing window/link
+    if (platform === 'email') {
+      window.location.href = url;
+    } else {
+      window.open(url, '_blank', 'width=600,height=400');
+    }
+    
+    showMessage(`Sharing ${activityName} on ${platform}...`, 'info');
   }
 
   // Handle form submission
