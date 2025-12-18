@@ -525,16 +525,16 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="social-share-container">
         <span class="share-label">Share:</span>
         <div class="social-share-buttons">
-          <button class="share-button twitter" data-activity="${name}" data-platform="twitter" title="Share on Twitter">
+          <button class="share-button twitter" data-activity="${name}" data-platform="twitter" title="Share on Twitter" aria-label="Share on Twitter">
             𝕏
           </button>
-          <button class="share-button facebook" data-activity="${name}" data-platform="facebook" title="Share on Facebook">
+          <button class="share-button facebook" data-activity="${name}" data-platform="facebook" title="Share on Facebook" aria-label="Share on Facebook">
             f
           </button>
-          <button class="share-button linkedin" data-activity="${name}" data-platform="linkedin" title="Share on LinkedIn">
+          <button class="share-button linkedin" data-activity="${name}" data-platform="linkedin" title="Share on LinkedIn" aria-label="Share on LinkedIn">
             in
           </button>
-          <button class="share-button email" data-activity="${name}" data-platform="email" title="Share via Email">
+          <button class="share-button email" data-activity="${name}" data-platform="email" title="Share via Email" aria-label="Share via Email">
             ✉
           </button>
         </div>
@@ -858,8 +858,20 @@ document.addEventListener("DOMContentLoaded", () => {
     
     switch (platform) {
       case 'twitter':
-        // Twitter/X share (now limited to 280 characters including URL)
-        const twitterText = `Join ${activityName} at Mergington High! ${details.description.substring(0, 100)}... Schedule: ${formattedSchedule}`;
+        // Twitter/X share - be conservative with character count to ensure it fits with URL
+        // Twitter counts URLs as 23 characters, leaving ~250 chars for text
+        const maxTwitterChars = 200; // Conservative limit to ensure it fits
+        let twitterText = `Join ${activityName} at Mergington High!`;
+        const scheduleText = ` Schedule: ${formattedSchedule}`;
+        
+        // Calculate remaining space for description
+        const remainingChars = maxTwitterChars - twitterText.length - scheduleText.length;
+        if (remainingChars > 20 && details.description.length > 0) {
+          const descSnippet = details.description.substring(0, remainingChars - 4);
+          twitterText += ` ${descSnippet}...`;
+        }
+        twitterText += scheduleText;
+        
         url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(twitterText)}&url=${encodeURIComponent(shareUrl)}`;
         break;
         
@@ -891,8 +903,6 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       window.open(url, '_blank', 'width=600,height=400');
     }
-    
-    showMessage(`Sharing ${activityName} on ${platform}...`, 'info');
   }
 
   // Handle form submission
